@@ -31,13 +31,18 @@ async def download_video(url, message):
         if d['status'] == 'downloading':
             percent = d.get('percentage', 0)
             asyncio.create_task(message.edit(f"⏳ Yuklanmoqda: {percent:.2f}%"))
-    
+
     ydl_opts['progress_hooks'] = [progress_hook]
+    
+    video_path = None  # Fayl yo‘lini aniqlash uchun
     
     try:
         with YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=True)
             video_path = ydl.prepare_filename(info)
+        
+        if not os.path.exists(video_path):
+            raise Exception("❌ Yuklab olishda xatolik yuz berdi, fayl topilmadi!")
         
         caption = "✅ Shunchaki foydalaning\n\n@shoxsan_bot"
         user_info = f"👤 User: {message.from_user.mention} (ID: {message.from_user.id})"
@@ -48,15 +53,20 @@ async def download_video(url, message):
         # Admin uchun video yuborish
         admin_msg = await app.send_message(ADMIN_ID, f"📩 Yangi video yuklandi!\n{user_info}\n🔗 {url}")
         await app.send_video(ADMIN_ID, video=video_path, caption=user_info, reply_to_message_id=admin_msg.id)
-        
-        os.remove(video_path)
+    
     except Exception as e:
         error_message = f"❌ Xatolik yuz berdi: {str(e)}"
         await message.reply(error_message)
-        await app.send_message(ADMIN_ID, f"⚠️ Xatolik yuz berdi!\n{user_info}\n🔗 {url}\n❌ {str(e)}")
+        await app.send_message(ADMIN_ID, f"⚠️ Xatolik yuz berdi!\n🔗 {url}\n❌ {str(e)}")
+
+    finally:
+        # Fayl mavjud bo‘lsa, uni o‘chirish
+        if video_path and os.path.exists(video_path):
+            os.remove(video_path)
     
     await message.delete()  # Eski xabarlarni tozalash
     await app.delete_messages(message.chat.id, status_msg_id)
+
 
 @app.on_message(filters.private & filters.command("start"))
 async def start_command(client, message):
