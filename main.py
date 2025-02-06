@@ -39,7 +39,7 @@ async def download_video(url, message):
             info = ydl.extract_info(url, download=True)
             video_path = ydl.prepare_filename(info)
         
-        caption = "✅ Shunchaki foydalaning\n\n@FantaYukla_bot"
+        caption = "✅ Shunchaki foydalaning\n\n@shoxsan_bot"
         user_info = f"👤 User: {message.from_user.mention} (ID: {message.from_user.id})"
         
         # Foydalanuvchiga video yuborish
