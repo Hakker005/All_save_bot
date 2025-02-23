@@ -1,1 +1,2 @@
-53561225705:rgxZ26TfsAZCUK:15:AYcKHzMwClsix12H8fLqqd0csY5PMZ13p3GjRug3YA
+# Netscape HTTP Cookie File
+.instagram.com	TRUE	/	FALSE	0	sessionid	53561225705:e2ZmxwcOJvgqvM:2:AYchm7gtKVharaJO_yqffcpHtYlb5npcBYSauNNznA
