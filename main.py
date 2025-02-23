@@ -13,6 +13,11 @@ ADMIN_ID = 5510219247
 
 app = Client("video_downloader_bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
 
+# Cookies faylini tekshirish
+COOKIES_FILE = "cookies.txt"
+if not os.path.exists(COOKIES_FILE):
+    print("⚠️ Ogohlantirish: cookies.txt topilmadi. Instagram yuklab olish ishlamasligi mumkin!")
+
 # Yuklab olish uchun funksiyalar
 async def download_video(url, message):
     temp_dir = "downloads"
@@ -21,18 +26,12 @@ async def download_video(url, message):
     ydl_opts = {
         'outtmpl': f'{temp_dir}/%(title)s.%(ext)s',
         'format': 'best',
-        'cookiefile': 'cookies.txt'  # <-- COOKIES YO‘LNI KO‘SHING
     }
     
-    msg = await message.reply("📥 Yuklab olinmoqda...")
-    status_msg_id = msg.id
+    if os.path.exists(COOKIES_FILE):
+        ydl_opts['cookiefile'] = COOKIES_FILE
     
-    def progress_hook(d):
-        if d['status'] == 'downloading':
-            percent = d.get('percentage', 0)
-            asyncio.create_task(message.edit(f"⏳ Yuklanmoqda: {percent:.2f}%"))
-
-    ydl_opts['progress_hooks'] = [progress_hook]
+    msg = await message.reply("📥 Yuklab olinmoqda...")
     
     video_path = None  # Fayl yo‘lini aniqlash uchun
     
@@ -64,8 +63,7 @@ async def download_video(url, message):
         if video_path and os.path.exists(video_path):
             os.remove(video_path)
     
-    await message.delete()  # Eski xabarlarni tozalash
-    await app.delete_messages(message.chat.id, status_msg_id)
+    await message.delete()
 
 
 @app.on_message(filters.private & filters.command("start"))
@@ -77,16 +75,12 @@ async def handle_message(client, message):
     url = message.text.strip()
     user_info = f"👤 User: {message.from_user.mention} (ID: {message.from_user.id})"
     
-    # Adminga foydalanuvchi xabarini yuborish
-    admin_msg = await app.send_message(ADMIN_ID, f"📩 {user_info} botga quyidagi xabarni yubordi:\n{url}")
+    await app.send_message(ADMIN_ID, f"📩 {user_info} botga quyidagi xabarni yubordi:\n{url}")
     
     if url.startswith("http"):
-        await message.delete()
         await download_video(url, message)
     else:
-        error_message = "❌ Iltimos, to'g'ri havola yuboring!"
-        await message.reply(error_message)
-        await app.send_message(ADMIN_ID, f"⚠️ Xatolik! {user_info} noto‘g‘ri havola yubordi: {url}")
+        await message.reply("❌ Iltimos, to'g'ri havola yuboring!")
 
 @app.on_message(filters.private & filters.reply & filters.user(ADMIN_ID))
 async def reply_to_user(client, message):
