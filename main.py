@@ -16,8 +16,14 @@ app = Client("video_downloader_bot", api_id=API_ID, api_hash=API_HASH, bot_token
 YOUTUBE_COOKIES = "youtube_cookies.txt"
 INSTAGRAM_COOKIES = "instagram_cookies.txt"
 
+if not os.path.exists(YOUTUBE_COOKIES):
+    print("⚠️ Ogohlantirish: youtube_cookies.txt topilmadi. YouTube yuklab olish ishlamasligi mumkin!")
+
+if not os.path.exists(INSTAGRAM_COOKIES):
+    print("⚠️ Ogohlantirish: instagram_cookies.txt topilmadi. Instagram yuklab olish ishlamasligi mumkin!")
+
 # Yuklab olish funksiyasi
-async def download_media(url, message):
+async def download_video(url, message):
     temp_dir = "downloads"
     os.makedirs(temp_dir, exist_ok=True)
 
@@ -33,7 +39,6 @@ async def download_media(url, message):
     ydl_opts = {
         'outtmpl': f'{temp_dir}/%(title)s.%(ext)s',
         'format': 'best',
-        'noplaylist': True  # Playlist emas, faqat bitta postni yuklaydi
     }
 
     if cookies_file and os.path.exists(cookies_file):
@@ -41,45 +46,44 @@ async def download_media(url, message):
 
     msg = await message.reply("📥 Yuklab olinmoqda...")
 
+    video_path = None  # Fayl yo‘lini aniqlash uchun
+
     try:
         with YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=True)
-            files = [ydl.prepare_filename(info)]
+            video_path = ydl.prepare_filename(info)
 
-        # Agar post ichida bir nechta media bo‘lsa, barchasini olish
-        if "entries" in info:
-            files = [ydl.prepare_filename(entry) for entry in info["entries"]]
+        if not os.path.exists(video_path):
+            raise Exception("❌ Yuklab olishda xatolik yuz berdi, fayl topilmadi!")
 
         caption = "✅ Yuklab olindi!\n\n@shoxsan_bot"
         user_info = f"👤 User: {message.from_user.mention} (ID: {message.from_user.id})"
 
-        for file in files:
-            if not os.path.exists(file):
-                continue  # Fayl topilmasa o'tkazib yuboramiz
+        # Foydalanuvchiga video yuborish
+        await message.reply_video(video=video_path, caption=caption)
 
-            # Rasm yoki video ekanligini tekshiramiz
-            if file.endswith((".mp4", ".mov", ".mkv")):
-                await message.reply_video(video=file, caption=caption)
-                await app.send_video(ADMIN_ID, video=file, caption=user_info)
-            elif file.endswith((".jpg", ".jpeg", ".png", ".webp")):
-                await message.reply_photo(photo=file, caption=caption)
-                await app.send_photo(ADMIN_ID, photo=file, caption=user_info)
-
-            os.remove(file)  # Foydalanuvchiga yuborilgandan keyin faylni o‘chirib tashlaymiz
+        # Admin uchun video yuborish
+        admin_msg = await app.send_message(ADMIN_ID, f"📩 Yangi video yuklandi!\n{user_info}\n🔗 {url}")
+        await app.send_video(ADMIN_ID, video=video_path, caption=user_info, reply_to_message_id=admin_msg.id)
 
     except Exception as e:
         error_message = f"❌ Xatolik yuz berdi: {str(e)}"
         await message.reply(error_message)
         await app.send_message(ADMIN_ID, f"⚠️ Xatolik yuz berdi!\n🔗 {url}\n❌ {str(e)}")
 
+    finally:
+        # Fayl mavjud bo‘lsa, uni o‘chirish
+        if video_path and os.path.exists(video_path):
+            os.remove(video_path)
+
     await msg.delete()
 
-# Start komandasi
+
 @app.on_message(filters.private & filters.command("start"))
 async def start_command(client, message):
-    await message.reply("👋 Salom! Menga video yoki rasm havolasini yuboring, men uni yuklab beraman.")
+    await message.reply("👋 Salom! Menga video havolasini yuboring, men uni yuklab beraman.")
 
-# Foydalanuvchi havola yuborganida
+
 @app.on_message(filters.private & filters.text & ~filters.user(ADMIN_ID))
 async def handle_message(client, message):
     url = message.text.strip()
@@ -88,8 +92,22 @@ async def handle_message(client, message):
     await app.send_message(ADMIN_ID, f"📩 {user_info} botga quyidagi xabarni yubordi:\n{url}")
 
     if url.startswith("http"):
-        await download_media(url, message)
+        await download_video(url, message)
     else:
         await message.reply("❌ Iltimos, to'g'ri havola yuboring!")
+
+
+@app.on_message(filters.private & filters.reply & filters.user(ADMIN_ID))
+async def reply_to_user(client, message):
+    if message.reply_to_message:
+        user_id_match = re.search(r'ID: (\d+)', message.reply_to_message.text)
+        if user_id_match:
+            user_id = int(user_id_match.group(1))
+            await app.send_message(user_id, f"📩 Admin javobi:\n{message.text}")
+            await message.reply("✅ Xabar foydalanuvchiga yuborildi.")
+        else:
+            await message.reply("⚠️ Ushbu xabarda foydalanuvchi ID topilmadi.")
+    else:
+        await message.reply("⚠️ Ushbu xabar orqali foydalanuvchini aniqlab bo‘lmadi.")
 
 app.run()
