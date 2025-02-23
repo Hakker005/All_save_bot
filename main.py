@@ -1,5 +1,4 @@
 import os
-import time
 import asyncio
 from pyrogram import Client, filters
 from yt_dlp import YoutubeDL
@@ -13,46 +12,60 @@ ADMIN_ID = 5510219247
 
 app = Client("video_downloader_bot", api_id=API_ID, api_hash=API_HASH, bot_token=BOT_TOKEN)
 
-# Cookies faylini tekshirish
-COOKIES_FILE = "cookies.txt"
-if not os.path.exists(COOKIES_FILE):
-    print("⚠️ Ogohlantirish: cookies.txt topilmadi. Instagram yuklab olish ishlamasligi mumkin!")
+# Cookie fayllar
+YOUTUBE_COOKIES = "youtube_cookies.txt"
+INSTAGRAM_COOKIES = "instagram_cookies.txt"
 
-# Yuklab olish uchun funksiyalar
+if not os.path.exists(YOUTUBE_COOKIES):
+    print("⚠️ Ogohlantirish: youtube_cookies.txt topilmadi. YouTube yuklab olish ishlamasligi mumkin!")
+
+if not os.path.exists(INSTAGRAM_COOKIES):
+    print("⚠️ Ogohlantirish: instagram_cookies.txt topilmadi. Instagram yuklab olish ishlamasligi mumkin!")
+
+# Yuklab olish funksiyasi
 async def download_video(url, message):
     temp_dir = "downloads"
     os.makedirs(temp_dir, exist_ok=True)
-    
+
+    # URL-ga qarab cookie faylni tanlash
+    if "instagram.com" in url:
+        cookies_file = INSTAGRAM_COOKIES
+    elif "youtube.com" in url or "youtu.be" in url:
+        cookies_file = YOUTUBE_COOKIES
+    else:
+        cookies_file = None
+
+    # Yuklab olish sozlamalari
     ydl_opts = {
         'outtmpl': f'{temp_dir}/%(title)s.%(ext)s',
         'format': 'best',
     }
-    
-    if os.path.exists(COOKIES_FILE):
-        ydl_opts['cookiefile'] = COOKIES_FILE
-    
+
+    if cookies_file and os.path.exists(cookies_file):
+        ydl_opts['cookiefile'] = cookies_file
+
     msg = await message.reply("📥 Yuklab olinmoqda...")
-    
+
     video_path = None  # Fayl yo‘lini aniqlash uchun
-    
+
     try:
         with YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=True)
             video_path = ydl.prepare_filename(info)
-        
+
         if not os.path.exists(video_path):
             raise Exception("❌ Yuklab olishda xatolik yuz berdi, fayl topilmadi!")
-        
-        caption = "✅ Shunchaki foydalaning\n\n@shoxsan_bot"
+
+        caption = "✅ Yuklab olindi!\n\n@shoxsan_bot"
         user_info = f"👤 User: {message.from_user.mention} (ID: {message.from_user.id})"
-        
+
         # Foydalanuvchiga video yuborish
         await message.reply_video(video=video_path, caption=caption)
-        
+
         # Admin uchun video yuborish
         admin_msg = await app.send_message(ADMIN_ID, f"📩 Yangi video yuklandi!\n{user_info}\n🔗 {url}")
         await app.send_video(ADMIN_ID, video=video_path, caption=user_info, reply_to_message_id=admin_msg.id)
-    
+
     except Exception as e:
         error_message = f"❌ Xatolik yuz berdi: {str(e)}"
         await message.reply(error_message)
@@ -62,25 +75,27 @@ async def download_video(url, message):
         # Fayl mavjud bo‘lsa, uni o‘chirish
         if video_path and os.path.exists(video_path):
             os.remove(video_path)
-    
-    await message.delete()
+
+    await msg.delete()
 
 
 @app.on_message(filters.private & filters.command("start"))
 async def start_command(client, message):
     await message.reply("👋 Salom! Menga video havolasini yuboring, men uni yuklab beraman.")
 
+
 @app.on_message(filters.private & filters.text & ~filters.user(ADMIN_ID))
 async def handle_message(client, message):
     url = message.text.strip()
     user_info = f"👤 User: {message.from_user.mention} (ID: {message.from_user.id})"
-    
+
     await app.send_message(ADMIN_ID, f"📩 {user_info} botga quyidagi xabarni yubordi:\n{url}")
-    
+
     if url.startswith("http"):
         await download_video(url, message)
     else:
         await message.reply("❌ Iltimos, to'g'ri havola yuboring!")
+
 
 @app.on_message(filters.private & filters.reply & filters.user(ADMIN_ID))
 async def reply_to_user(client, message):
