@@ -1,2 +1,2 @@
 # Netscape HTTP Cookie File
-.instagram.com	TRUE	/	FALSE	0	sessionid	53561225705:opCOCrTXO49S6K:26:AYds4V08Clc95w3QsJjeYxMsTSxQlcAeIGmGgH07qg
+.instagram.com	TRUE	/	FALSE	0	sessionid	73363793462%3ASSrnnv8OzTGqQH%3A15%3AAYcV8uYZHzlM5k1s1GKnGsGh8TDTnJGXtcIbDmlKxw
